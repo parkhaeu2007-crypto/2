@@ -6,6 +6,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f5f7f3" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icon.svg" />
   <title>NEST — 내 자료로 공부하는 AI</title>
   <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
@@ -17,16 +22,48 @@
 
 
 </style>
+
+<style>
+.study-modal{width:min(640px,100%)}
+.study-progress{font:11px 'DM Mono';color:var(--muted);margin:18px 0 10px}
+.study-question{padding:20px;background:#f4f8ef;border:1px solid var(--line);border-radius:8px;font-size:17px;line-height:1.7;font-weight:700}
+body.dark .study-question{background:#263322}
+.study-options{display:grid;gap:8px;margin-top:12px}
+.study-option{padding:12px 14px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--text);text-align:left;font:inherit;cursor:pointer}
+.study-option:hover{border-color:#9ec84a;background:#f8fbf3}
+.study-option.correct{border-color:#76a92b;background:#eff8df;color:#41670a}
+.study-option.incorrect{border-color:#d88d8d;background:#fff1f1;color:#963d3d}
+.study-feedback{margin-top:12px;padding:12px 14px;border-radius:7px;background:#f4f8ef;color:#526157;font-size:13px;line-height:1.7}
+.study-feedback strong{color:#577d10}
+.study-actions{display:flex;gap:8px;margin-top:14px}
+.study-actions button{flex:1;width:auto;min-height:42px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);font-weight:700;cursor:pointer}
+.study-actions button.primary-btn{border:0;background:var(--lime);color:#2a4108}
+@media(max-width:650px){.study-modal{padding:24px 16px 20px}.study-question{font-size:15px;padding:15px}.study-option{padding:11px 12px}}
+</style>
+
+<style>
+.youtube-import{margin:16px 0;padding:14px;background:#f6f9f3;border:1px solid var(--line);border-radius:7px}
+body.dark .youtube-import{background:#202a26}
+.youtube-import .field-label{margin:0 0 8px}
+.youtube-row{display:flex;gap:7px}
+.youtube-row .text-input{margin:0;min-width:0}
+.youtube-import-btn{flex:none;border:0;border-radius:5px;padding:0 13px;background:var(--lime);color:#2a4108;font-weight:800;cursor:pointer}
+.youtube-import-btn:disabled{opacity:.65;cursor:wait}
+.youtube-hint,.youtube-status{margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.55}
+.youtube-status{color:#577d10}
+.cloud-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:18px}.cloud-actions button{min-height:44px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);font:inherit;font-size:12px;font-weight:700}.cloud-actions .primary-btn{background:var(--lime);color:#2a4108;border:0}.cloud-state{font-size:12px;color:var(--muted);line-height:1.6;margin:10px 0}.cloud-note{font-size:11px;line-height:1.6;color:var(--muted);padding:11px;background:#f3f7ef;border-radius:6px}body.dark .cloud-note{background:#202a26}
+@media(max-width:650px){.youtube-import{padding:11px}.youtube-row{flex-direction:column}.youtube-import-btn{min-height:42px}.youtube-row .text-input{font-size:16px}}
+</style>
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">✦</span><span>NEST</span><small>LOCAL STUDY AI</small></div>
-      <button class="add-source" id="openAddSource"><span>＋</span> 공부 자료 넣기</button>
+      <button class="add-source" id="openAddSource"><span>＋</span> 공부 자료 넣기</button><button class="library-toggle" id="toggleLibrary" aria-expanded="false">자료 목록 보기 ↓</button>
       <div class="side-label">내 자료함 <span id="sourceCount">0</span></div><div class="library-actions"><button id="newCollection">＋ 새 자료함</button></div><div id="collectionList" class="collection-list"></div>
       <div id="sourceList" class="source-list"></div>
       <div class="sidebar-bottom">
-        <div class="local-status"><i></i><span id="aiStatus">데모 모드</span><button id="openSettings" title="설정">⚙</button></div>
+        <div class="local-status"><i></i><span id="aiStatus">데모 모드</span><button id="openCloud" title="기기 간 자료 동기화">☁</button><button id="openSettings" title="설정">⚙</button></div>
         <div class="privacy-note">문서와 대화는 이 브라우저에만 저장됩니다.</div>
       </div>
     </aside>
@@ -38,7 +75,7 @@
       </header>
 
       <section class="workspace">
-        <div class="context-strip"><span class="step-number">1</span><span id="contextText">먼저 왼쪽의 ‘공부 자료 넣기’를 눌러 자료를 추가하세요.</span><button id="manageSources">자료 넣기 →</button></div><div class="study-tools"><div class="tools-title"><span class="eyebrow">STUDY TOOLS</span><strong>한 번에 공부 자료 만들기</strong></div><div class="tools-grid"><button data-tool-prompt="이 자료를 시험공부용으로 5줄로 요약해줘"><span>✦</span>AI 요약</button><button data-tool-prompt="이 자료의 핵심 개념과 정의를 정리해줘"><span>◇</span>핵심 개념</button><button data-tool-prompt="이 자료로 객관식과 단답형 퀴즈를 섞어서 5문제 만들어줘. 정답과 해설도 포함해줘"><span>?</span>AI 퀴즈</button><button data-tool-prompt="이 자료의 핵심 용어로 앞면은 질문, 뒷면은 답인 플래시카드 6개를 만들어줘"><span>▣</span>플래시카드</button><button data-tool-prompt="이 자료의 주제와 개념 연결을 트리 구조 마인드맵으로 표현해줘"><span>⌘</span>마인드맵</button><button data-tool-prompt="이 자료를 바탕으로 시험 전 복습 보고서를 작성해줘. 핵심 요약, 꼭 외울 것, 헷갈리기 쉬운 점을 포함해줘"><span>▤</span>복습 보고서</button></div></div>
+        <div class="context-strip"><span class="step-number">1</span><span id="contextText">먼저 왼쪽의 ‘공부 자료 넣기’를 눌러 자료를 추가하세요.</span><button id="manageSources">자료 넣기 →</button></div><div class="study-tools"><div class="tools-title"><span class="eyebrow">STUDY TOOLS</span><strong>오늘은 무엇을 공부할까요?</strong></div><div class="tools-grid"><button data-tool-prompt="이 자료를 시험공부용으로 핵심만 5줄로 요약해줘"><span>✦</span>핵심 요약</button><button data-study-mode="quiz"><span>?</span>퀴즈 풀기</button><button data-study-mode="cards"><span>▣</span>암기 카드</button></div></div>
         <div id="chatMessages" class="chat-messages"></div>
         <div class="suggestions" id="suggestions">
           <button data-prompt="이 자료의 핵심 내용을 5줄로 요약해줘">핵심 내용 요약</button>
@@ -60,14 +97,30 @@
     </aside>
   </div>
 
-  <div class="modal-backdrop hidden" id="sourceModal"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">ADD TO YOUR FOLDER</span><h2>자료를 추가하세요.</h2><p class="modal-desc">자료를 넣을 자료함을 먼저 고르고 PDF나 파일을 선택하세요.</p><label class="field-label">넣을 자료함<select id="sourceCollection" class="text-input"></select></label><label class="drop-zone" id="dropZone"><input type="file" id="fileInput" accept=".pdf,.txt,.md,.csv,.json,.html,.text,application/pdf" multiple /><span class="upload-icon">↑</span><strong>PDF나 파일을 끌어놓거나 클릭해서 선택</strong><small>파일은 선택한 자료함 안에 들어갑니다.</small></label><div class="or-line"><span>또는 직접 붙여넣기</span></div><input id="sourceTitle" class="text-input" placeholder="자료 제목 (예: 생명과학 1단원)" /><textarea id="sourceText" class="source-text" placeholder="여기에 공부할 내용을 붙여넣으세요…"></textarea><button class="primary-btn" id="saveSource">자료 저장하기 <span>↗</span></button></div></div>
+<div class="modal-backdrop hidden" id="studyModal"><div class="modal study-modal" role="dialog" aria-modal="true" aria-labelledby="studyTitle"><button class="modal-close" data-close aria-label="닫기">×</button><span class="eyebrow">자료 기반 복습</span><h2 id="studyTitle">퀴즈 풀기</h2><p class="modal-desc" id="studyDescription">자료에 나온 문장으로 복습해요.</p><div class="study-progress" id="studyProgress"></div><div id="studyQuestion" class="study-question"></div><div id="studyOptions" class="study-options"></div><div id="studyFeedback" class="study-feedback hidden"></div><div id="studyActions" class="study-actions"></div></div></div>
+  <div class="modal-backdrop hidden" id="sourceModal"><div class="modal"><button class="modal-close" data-close>×</button><span class="eyebrow">ADD TO YOUR FOLDER</span><h2>자료를 추가하세요.</h2><p class="modal-desc">링크, 파일, 사진, 붙여넣은 내용을 자료함에 넣을 수 있어요.</p><label class="field-label">넣을 자료함<select id="sourceCollection" class="text-input"></select></label><div class="youtube-import"><label class="field-label" for="resourceUrl">웹페이지 · PDF · YouTube 링크</label><div class="youtube-row"><input id="resourceUrl" class="text-input" type="url" placeholder="https://…" /><button type="button" id="importLink" class="youtube-import-btn">링크 가져오기</button></div><p class="youtube-hint">공개 웹페이지 본문과 텍스트 PDF를 읽어요. YouTube는 제공되는 자막을 가져옵니다. 로그인 필요 페이지와 스캔 PDF는 파일로 올려 주세요.</p><p id="linkStatus" class="youtube-status" aria-live="polite"></p></div><label class="drop-zone" id="dropZone"><input type="file" id="fileInput" accept=".pdf,.txt,.md,.csv,.json,.html,.text,.png,.jpg,.jpeg,.webp,image/*,application/pdf" multiple /><span class="upload-icon">↑</span><strong>PDF, 문서, 필기 사진을 끌어놓거나 클릭해서 선택</strong><small>파일은 선택한 자료함 안에 들어갑니다.</small></label><div class="or-line"><span>또는 직접 붙여넣기</span></div><input id="sourceTitle" class="text-input" placeholder="자료 제목 (예: 생명과학 1단원)" /><textarea id="sourceText" class="source-text" placeholder="여기에 공부할 내용을 붙여넣으세요…"></textarea><button class="primary-btn" id="saveSource">자료 저장하기 <span>↗</span></button></div></div>
 
   <div class="modal-backdrop hidden" id="settingsModal"><div class="modal small-modal"><button class="modal-close" data-close>×</button><span class="eyebrow">LOCAL AI CONNECTION</span><h2>AI 연결 설정</h2><p class="modal-desc">Ollama를 설치하면 토큰 비용 없이 내 컴퓨터에서 답변을 만들 수 있어요.</p><label class="field-label">Ollama 주소<input id="ollamaUrl" class="text-input" value="http://localhost:11434" /></label><label class="field-label">모델 이름<input id="ollamaModel" class="text-input" value="qwen2.5:3b" /></label><div class="settings-help">Ollama 설치 후 터미널에서 <code>ollama run qwen2.5:3b</code>를 실행하세요. 연결되지 않으면 자동으로 데모 모드가 사용됩니다.</div><button class="primary-btn" id="saveSettings">설정 저장하고 연결 테스트</button></div></div>
+  <div class="modal-backdrop hidden" id="cloudModal"><div class="modal small-modal"><button class="modal-close" data-close>×</button><span class="eyebrow">SYNC ACROSS DEVICES</span><h2>자료 동기화</h2><p class="modal-desc">같은 계정으로 로그인하면 자료함, 공부 자료, 메모와 대화가 기기 간에 동기화돼요.</p><label class="field-label">Supabase 프로젝트 URL<input id="cloudUrl" class="text-input" type="url" placeholder="https://프로젝트ID.supabase.co" /></label><label class="field-label">Publishable / anon 키<input id="cloudKey" class="text-input" type="password" autocomplete="off" placeholder="sb_publishable_… 또는 anon 키" /></label><label class="field-label">이메일<input id="cloudEmail" class="text-input" type="email" autocomplete="email" placeholder="you@example.com" /></label><label class="field-label">비밀번호<input id="cloudPassword" class="text-input" type="password" autocomplete="current-password" placeholder="8자 이상" /></label><div class="cloud-actions"><button type="button" id="cloudSignup">새 계정 만들기</button><button type="button" id="cloudLogin" class="primary-btn">로그인하고 동기화</button></div><p id="cloudStatus" class="cloud-state" aria-live="polite">연결 설정을 입력해 주세요.</p><div class="cloud-note">브라우저에는 공개용 키만 저장됩니다. 서비스 역할 키(service_role/secret)는 여기에 입력하지 마세요. 자료는 로그인한 본인 계정만 읽고 쓸 수 있도록 보호됩니다.</div><button type="button" id="cloudLogout" class="text-input" style="margin-top:12px;cursor:pointer">로그아웃</button></div></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const largeDb=new Promise(resolve=>{if(!window.indexedDB)return resolve(null);const req=indexedDB.open('NEST_LARGE_DATA',1);req.onupgradeneeded=()=>req.result.createObjectStore('data');req.onsuccess=()=>resolve(req.result);req.onerror=()=>resolve(null)});function saveLarge(k,v){largeDb.then(db=>{if(!db)return;const tx=db.transaction('data','readwrite');tx.objectStore('data').put(v,k)})}function loadLarge(k){return largeDb.then(db=>new Promise(resolve=>{if(!db)return resolve(null);const req=db.transaction('data').objectStore('data').get(k);req.onsuccess=()=>resolve(req.result);req.onerror=()=>resolve(null)}))};
-const store={get(k,d){try{return JSON.parse(localStorage.getItem('nest_'+k))??d}catch{return d}},set(k,v){try{localStorage.setItem('nest_'+k,JSON.stringify(v))}catch(e){saveLarge(k,v);console.warn('큰 자료를 별도 저장소에 보관합니다.',e)}}};
+let cloudSyncState={client:null,user:null,busy:false,hydrating:false,timer:null};const cloudKeys=new Set(['collections','sources','messages','notes','tombstones']);
+const store={get(k,d){try{return JSON.parse(localStorage.getItem('nest_'+k))??d}catch{return d}},set(k,v){try{localStorage.setItem('nest_'+k,JSON.stringify(v))}catch(e){saveLarge(k,v);console.warn('큰 자료를 별도 저장소에 보관합니다.',e)}if(cloudKeys.has(k))queueCloudSync()}};
 let collections=store.get('collections',[{id:'all',name:'전체 자료'}]),activeCollection=store.get('activeCollection','all'),sources=store.get('sources',[]), messages=store.get('messages',[]), notes=store.get('notes',[]), settings=store.get('settings',{url:'http://localhost:11434',model:'qwen2.5:3b'}), lastEvidence=[];if(!Array.isArray(collections)||!collections.length)collections=[{id:'all',name:'전체 자료'}];if(!Array.isArray(sources))sources=[];if(!Array.isArray(messages))messages=[];if(!Array.isArray(notes))notes=[];if(!settings||typeof settings!=='object')settings={url:'http://localhost:11434',model:'qwen2.5:3b'};sources.forEach(s=>{if(!s.collectionId)s.collectionId='all'});
+let tombstones=store.get('tombstones',[]);if(!Array.isArray(tombstones))tombstones=[];function stableLegacyId(kind,item,index){if(item.id)return String(item.id);if(kind==='message')return `oldm_${index}_${String(item.role||'').slice(0,4)}_${String(item.text||'').slice(0,32)}`;if(kind==='note')return `oldn_${item.created||index}_${String(item.text||'').slice(0,32)}`;return `${kind}_${index}`};sources.forEach((x,i)=>x.id=stableLegacyId('source',x,i));messages.forEach((x,i)=>x.id=stableLegacyId('message',x,i));notes.forEach((x,i)=>x.id=stableLegacyId('note',x,i));
+function currentCloudSnapshot(){return {version:1,collections,sources,messages,notes,tombstones}}
+function normalizedSnapshot(value){const s=value&&typeof value==='object'?value:{};return {version:1,collections:Array.isArray(s.collections)?s.collections:[],sources:Array.isArray(s.sources)?s.sources:[],messages:Array.isArray(s.messages)?s.messages:[],notes:Array.isArray(s.notes)?s.notes:[],tombstones:Array.isArray(s.tombstones)?s.tombstones:[]}}
+function mergeCloudSnapshots(remote,local){remote=normalizedSnapshot(remote);local=normalizedSnapshot(local);const dead=new Set([...remote.tombstones,...local.tombstones]);function mergeList(a,b,key,prefix){const map=new Map();[...a,...b].forEach((item,i)=>{const id=String(item[key]??`${prefix}_${i}_${item.text||item.name||''}`);if(!dead.has(`${prefix}:${id}`))map.set(id,{...item,[key]:id})});return [...map.values()]};const merged={version:1,tombstones:[...dead],collections:mergeList(remote.collections,local.collections,'id','collection'),sources:mergeList(remote.sources,local.sources,'id','source'),messages:mergeList(remote.messages,local.messages,'id','message'),notes:mergeList(remote.notes,local.notes,'id','note')};if(!merged.collections.some(c=>c.id==='all'))merged.collections.unshift({id:'all',name:'전체 자료'});merged.sources.sort((a,b)=>(b.created||0)-(a.created||0));merged.messages.sort((a,b)=>(a.created||0)-(b.created||0));merged.notes.sort((a,b)=>(b.created||0)-(a.created||0));return merged}
+function setCloudStatus(text){const el=$('#cloudStatus');if(el)el.textContent=text}
+function cloudErrorText(error){const message=error?.message||'';if(/relation .* does not exist|Could not find the table/i.test(message))return 'Supabase에 nest_user_data 테이블을 만들고 SQL 설정을 실행해 주세요.';if(/Invalid API key|JWT/i.test(message))return '프로젝트 URL 또는 공개용 키를 확인해 주세요.';return message||'클라우드 연결에 실패했어요. 설정을 확인해 주세요.'}
+function queueCloudSync(){if(cloudSyncState.hydrating||!cloudSyncState.user||!cloudSyncState.client)return;clearTimeout(cloudSyncState.timer);cloudSyncState.timer=setTimeout(()=>syncCloudNow(),1000)}
+function applyCloudSnapshot(snapshot){cloudSyncState.hydrating=true;try{collections=snapshot.collections;sources=snapshot.sources;messages=snapshot.messages;notes=snapshot.notes;tombstones=snapshot.tombstones;store.set('collections',collections);store.set('sources',sources);store.set('messages',messages);store.set('notes',notes);store.set('tombstones',tombstones);activeCollection=collections.some(c=>c.id===activeCollection)?activeCollection:(collections[0]?.id||'all');store.set('activeCollection',activeCollection);renderCollections();renderSources();renderMessages();renderNotes();updateStudyProgress()}finally{cloudSyncState.hydrating=false}}
+async function syncCloudNow(){const {client,user}=cloudSyncState;if(!client||!user)return;if(cloudSyncState.busy){queueCloudSync();return}cloudSyncState.busy=true;setCloudStatus('다른 기기의 자료를 확인하고 있어요…');try{const {data,error}=await client.from('nest_user_data').select('snapshot').eq('user_id',user.id).maybeSingle();if(error)throw error;const merged=mergeCloudSnapshots(data?.snapshot,currentCloudSnapshot());applyCloudSnapshot(merged);const result=await client.from('nest_user_data').upsert({user_id:user.id,snapshot:merged,updated_at:new Date().toISOString()},{onConflict:'user_id'});if(result.error)throw result.error;setCloudStatus(`동기화 완료 · ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`);$('#openCloud').title=`${user.email||'계정'} · 동기화됨`}catch(error){setCloudStatus(cloudErrorText(error))}finally{cloudSyncState.busy=false}}
+function saveCloudConfig(){const url=$('#cloudUrl').value.trim().replace(/\/$/,''),key=$('#cloudKey').value.trim();if(!/^https:\/\/[\w.-]+\.supabase\.co$/.test(url)||!key){setCloudStatus('Supabase 프로젝트 URL과 공개용 키를 입력해 주세요.');return false}const config={url,key};store.set('cloudConfig',config);if(!window.supabase?.createClient){setCloudStatus('로그인 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');return false}cloudSyncState.client=window.supabase.createClient(url,key);return true}
+async function cloudLogin(createAccount=false){if(!saveCloudConfig())return;const email=$('#cloudEmail').value.trim(),password=$('#cloudPassword').value;if(!email||!password){setCloudStatus('이메일과 비밀번호를 입력해 주세요.');return}setCloudStatus(createAccount?'계정을 만드는 중…':'로그인 중…');try{const result=createAccount?await cloudSyncState.client.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin}}):await cloudSyncState.client.auth.signInWithPassword({email,password});if(result.error)throw result.error;if(!result.data.session){setCloudStatus('가입 확인 메일을 열어 인증한 다음, 로그인 버튼을 눌러 주세요.');return}cloudSyncState.user=result.data.user;$('#cloudPassword').value='';await syncCloudNow()}catch(error){setCloudStatus(cloudErrorText(error))}}
+function initializeCloudOnStartup(){const config=store.get('cloudConfig',null);if(!config?.url||!config?.key||!window.supabase?.createClient)return;$('#cloudUrl').value=config.url;$('#cloudKey').value=config.key;cloudSyncState.client=window.supabase.createClient(config.url,config.key);cloudSyncState.client.auth.getSession().then(({data,error})=>{if(error){setCloudStatus(cloudErrorText(error));return}if(data.session){cloudSyncState.user=data.session.user;syncCloudNow()}})}
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function renderCollections(){const current=collections.find(c=>c.id===activeCollection)||collections[0]||{id:'all',name:'전체 자료'};activeCollection=current.id;store.set('activeCollection',activeCollection);const list=$('#collectionList');if(list)list.innerHTML=collections.map(c=>`<button class="collection-item ${c.id===activeCollection?'active':''}" data-collection="${c.id}"><span>▣</span><strong>${escapeHTML(c.name)}</strong><em>${sources.filter(s=>(s.collectionId||'all')===c.id).length}</em></button>`).join('');const select=$('#sourceCollection');if(select)select.innerHTML=collections.filter(c=>c.id!=='all').map(c=>`<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('')||'<option value="all">전체 자료</option>';}
 function renderSources(){const shown=sources.filter(s=>(s.collectionId||'all')===activeCollection);$('#sourceCount').textContent=shown.length;$('#sourceList').innerHTML=shown.length?shown.map((s,i)=>`<div class="source-item ${i===0?'selected':''}" data-id="${s.id}"><span class="source-icon">◈</span><div class="source-copy"><div class="source-name">${escapeHTML(s.title)}</div><div class="source-meta">${s.text.length.toLocaleString()}자 · ${new Date(s.created).toLocaleDateString('ko-KR')}</div></div><button class="delete-source" data-delete="${s.id}" title="이 자료 삭제">×</button></div>`).join(''):`<div class="empty-state">이 자료함은 비어 있어요.<br>공부 자료 넣기를 눌러 추가하세요.</div>`;$('#contextText').textContent=shown.length?`현재 ‘${currentCollectionName()}’ 자료함의 ${shown.length}개 자료를 사용해요.`:`‘${currentCollectionName()}’ 자료함에 자료를 추가해보세요.`;}
@@ -91,16 +144,137 @@ function searchEvidence(query){
   return ranked.sort((a,b)=>b.score-a.score).slice(0,4);
 }
 function renderEvidence(list){lastEvidence=list;$('#evidenceCount').textContent=list.length;$('#evidenceList').innerHTML=list.length?list.map((e,i)=>`<div class="evidence-card"><div class="source-ref">[${i+1}] ${escapeHTML(e.source)}</div><p>${escapeHTML(e.sentence.slice(0,260))}</p></div>`).join(''):`<div class="empty-state">질문을 보내면 답변의<br>근거가 여기에 표시됩니다.</div>`}
-function addMessage(role,text){messages.push({role,text});store.set('messages',messages);renderMessages()}
+function addMessage(role,text){messages.push({id:'m_'+Date.now()+Math.random(),created:Date.now(),role,text});store.set('messages',messages);renderMessages()}
 function localAnswer(query,evidence){if(!sources.length)return'먼저 왼쪽의 **공부 자료 넣기**에서 자료를 넣어주세요.';if(!evidence.length)return`현재 자료함에서 질문과 연결되는 문장을 찾지 못했어요.\n\n자료에 나온 표현을 조금 더 구체적으로 질문하거나, 다른 자료함을 선택해보세요.`;let q=query.toLowerCase();if(q.includes('요약')||q.includes('핵심'))return`## AI 요약\n\n${evidence.slice(0,4).map((e,i)=>`${i+1}. ${e.sentence}`).join('\n')}\n\n**복습 팁:** 각 문장을 한 문장으로 다시 설명해보세요.`;if(q.includes('문제')||q.includes('퀴즈'))return`## AI 퀴즈\n\n1. ${evidence[0].sentence}와 관련된 핵심 개념은 무엇인가요?\n2. 다음 내용을 자신의 말로 설명해보세요: “${evidence[Math.min(1,evidence.length-1)].sentence.slice(0,110)}”\n3. 자료의 내용을 실제 사례에 적용한다면 어떤 예가 있을까요?\n\n**정답 확인:** 답을 먼저 말한 뒤 채팅에 “정답과 해설을 알려줘”라고 입력하세요.`;if(q.includes('플래시')||q.includes('카드')||q.includes('암기'))return`## 플래시카드\n\n${evidence.slice(0,4).map((e,i)=>`카드 ${i+1}\n앞면: 이 내용의 핵심은 무엇인가요?\n뒷면: ${e.sentence}`).join('\n\n')}`;if(q.includes('마인드맵')||q.includes('트리'))return`## 마인드맵\n\n└─ 현재 자료의 핵심 주제\n   ├─ 개념 1: ${evidence[0].sentence.slice(0,70)}\n   ├─ 개념 2: ${evidence[Math.min(1,evidence.length-1)].sentence.slice(0,70)}\n   └─ 복습 질문: 이 개념들은 어떻게 연결되나요?`;if(q.includes('보고서')||q.includes('복습'))return`## 시험 전 복습 보고서\n\n**핵심 요약**\n${evidence.slice(0,3).map(e=>`• ${e.sentence}`).join('\n')}\n\n**꼭 외울 것**\n자료에서 반복되는 단어와 정의를 표시해두세요.\n\n**헷갈리기 쉬운 점**\n각 개념의 차이를 예시와 함께 비교해보세요.`;return`자료에서 관련 내용을 찾았어요.\n\n${evidence[0].sentence}\n\n이 내용을 바탕으로 더 깊이 알아보려면 “왜 그런가?”, “예시를 들어줘”라고 이어서 질문해보세요.`}
 async function askOllama(query,evidence){const context=sources.filter(s=>(s.collectionId||'all')===activeCollection).map(s=>`[${s.title}]\n${s.text}`).join('\n\n').slice(0,24000);const res=await fetch(settings.url.replace(/\/$/,'')+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:settings.model,stream:false,messages:[{role:'system',content:'너는 문서 기반 학습 도우미다. 반드시 제공된 자료만 근거로 한국어로 답하고, 자료에 없으면 없다고 말해라. 요약, 퀴즈, 플래시카드, 마인드맵, 복습 보고서를 구조적으로 작성해라.'},{role:'user',content:`자료:\n${context}\n\n질문: ${query}`}]})});if(!res.ok)throw Error('offline');const data=await res.json();return data.message?.content||'답변을 받지 못했어요.'}
 async function submitQuery(query){if(!query.trim())return;addMessage('user',query);$('#promptInput').value='';const evidence=searchEvidence(query);renderEvidence(evidence);addMessage('ai','생각 중…');const idx=messages.length-1;try{const answer=await askOllama(query,evidence);messages[idx].text=answer;store.set('messages',messages);$('#aiStatus').textContent='Ollama 연결됨';renderMessages()}catch{messages[idx].text=localAnswer(query,evidence);store.set('messages',messages);$('#aiStatus').textContent='데모 모드';renderMessages()}}
-function openModal(id){$(id).classList.remove('hidden')}function closeModals(){$$('.modal-backdrop').forEach(x=>x.classList.add('hidden'))}
-$('#openAddSource').onclick=()=>openModal('#sourceModal');$('#manageSources').onclick=()=>openModal('#sourceModal');$('#openSettings').onclick=()=>{ $('#ollamaUrl').value=settings.url;$('#ollamaModel').value=settings.model;openModal('#settingsModal')};$$('[data-close]').forEach(x=>x.onclick=closeModals);$$('.modal-backdrop').forEach(x=>x.onclick=e=>{if(e.target===x)closeModals()});
+
+let studyMode='quiz',studyItems=[],studyIndex=0,studyScore=0,studyRevealed=false,studyStats=store.get('studyStats',{quizzes:0,correct:0,reviewedCards:0,knownCards:0});
+function updateStudyProgress(){const total=Number(studyStats.reviewedCards)||0,known=Number(studyStats.knownCards)||0;const ring=$('#progressRing');if(ring)ring.textContent=total?Math.round(known/total*100)+'%':'0%';}
+function studyShuffle(items){return [...items].sort(()=>Math.random()-.5)}
+function getStudyItems(){
+ const stop=new Set(['그리고','그러나','하지만','때문에','통해','대한','대해','자료','내용','이것','저것','무엇','있는','없는','한다','된다','했다','하는','되는','있다','없다','것은','것이','수는','으로','에서','에게','부터','까지','처럼','보다','은','는','이','가','을','를','의','에','와','과','로','도','및','또는','the','and','that','this','with','from','into','what','when','where','which','their','there','have','will','would','could']);
+ const out=[];
+ sources.filter(s=>(s.collectionId||'all')===activeCollection).forEach(source=>{
+  const parts=source.text.replace(/\r/g,'').split(/\n+|[.!?。！？]\s+/).map(x=>x.trim()).filter(x=>x.length>=18);
+  parts.forEach(sentence=>{
+   const seen=new Set(),tokens=(sentence.match(/[가-힣]{2,}|[A-Za-z][A-Za-z0-9_-]{2,}|\d+(?:\.\d+)?/g)||[]).map(t=>t.replace(/(으로|에서|에게|부터|까지|처럼|보다|은|는|이|가|을|를|의|에|와|과|로|도)$/,'')).filter(t=>t.length>=2&&!stop.has(t.toLowerCase())&&!seen.has(t.toLowerCase())&&seen.add(t.toLowerCase()));
+   if(!tokens.length)return;
+   const answer=tokens.sort((a,b)=>b.length-a.length)[0];
+   const pos=sentence.toLowerCase().indexOf(answer.toLowerCase());
+   const question=pos<0?sentence:sentence.slice(0,pos)+'＿＿＿＿'+sentence.slice(pos+answer.length)
+   if(question!==sentence)out.push({source:source.title,sentence,answer,question});
+  });
+ });
+ return out.slice(0,80);
+}
+function renderStudy(){
+ const total=studyItems.length;
+ $('#studyOptions').innerHTML='';$('#studyFeedback').classList.add('hidden');$('#studyFeedback').innerHTML='';
+ if(studyIndex>=total){
+  $('#studyProgress').textContent='복습 완료';
+  $('#studyQuestion').textContent=studyMode==='quiz'?studyScore+' / '+total+'개 정답':'알았어요 '+studyItems.filter(x=>x.known).length+'개';
+  $('#studyOptions').innerHTML='';
+  $('#studyFeedback').classList.remove('hidden');
+  $('#studyFeedback').innerHTML=studyMode==='quiz'?'자료를 다시 보거나 암기 카드로 한 번 더 복습해보세요.':'잘 떠오르지 않은 카드는 다음에 다시 확인해보세요.';
+  $('#studyActions').innerHTML='<button type="button" class="primary-btn" id="studyRestart">다시 하기</button>';
+  $('#studyRestart').onclick=()=>startStudy(studyMode);return;
+ }
+ const item=studyItems[studyIndex];
+ $('#studyProgress').textContent=(studyIndex+1)+' / '+total;
+ if(studyMode==='quiz'){
+  $('#studyTitle').textContent='퀴즈 풀기';$('#studyDescription').textContent='빈칸에 들어갈 말을 골라보세요.';
+  $('#studyQuestion').textContent=item.question;
+  const other=[...new Set(getStudyItems().map(x=>x.answer))].filter(x=>x!==item.answer);
+  const options=studyShuffle(item.options?.length?item.options:[item.answer,...studyShuffle(other).slice(0,3)]);
+  $('#studyOptions').innerHTML=options.map(x=>'<button type="button" class="study-option" data-answer="'+escapeHTML(x)+'">'+escapeHTML(x)+'</button>').join('');
+  $$('.study-option').forEach(btn=>btn.onclick=()=>{
+   $$('.study-option').forEach(b=>b.disabled=true);
+   const correct=btn.dataset.answer===item.answer;if(correct)studyScore++;
+   btn.classList.add(correct?'correct':'incorrect');
+   $$('.study-option').forEach(b=>{if(b.dataset.answer===item.answer)b.classList.add('correct')});
+   studyStats.correct=(Number(studyStats.correct)||0)+(correct?1:0);store.set('studyStats',studyStats);updateStudyProgress();
+   $('#studyFeedback').classList.remove('hidden');
+   $('#studyFeedback').innerHTML=(correct?'<strong>맞았어요!</strong> ':'<strong>정답은 '+escapeHTML(item.answer)+'예요.</strong> ')+escapeHTML(item.source)+'<br>'+escapeHTML(item.explanation||item.sentence);
+   $('#studyActions').innerHTML='<button type="button" class="primary-btn" id="studyNext">'+(studyIndex+1===total?'결과 보기':'다음 문제')+' →</button>';
+   $('#studyNext').onclick=()=>{studyIndex++;if(studyIndex>=total)studyStats.quizzes=(Number(studyStats.quizzes)||0)+1;store.set('studyStats',studyStats);renderStudy()};
+  });
+ }else{
+  $('#studyTitle').textContent='암기 카드';$('#studyDescription').textContent='답을 먼저 떠올린 다음 카드를 뒤집어 확인하세요.';
+  $('#studyQuestion').textContent=item.question;
+  $('#studyActions').innerHTML=studyRevealed?'<button type="button" id="cardAgain">다시 볼래요</button><button type="button" class="primary-btn" id="cardKnown">알았어요 ✓</button>':'<button type="button" class="primary-btn" id="cardReveal">답 보기</button>';
+  if(studyRevealed){$('#studyFeedback').classList.remove('hidden');$('#studyFeedback').innerHTML='<strong>'+escapeHTML(item.answer)+'</strong><br>'+escapeHTML(item.sentence)+'<br><small>'+escapeHTML(item.source)+'</small>';$('#cardAgain').onclick=()=>finishCard(false);$('#cardKnown').onclick=()=>finishCard(true)}
+  else $('#cardReveal').onclick=()=>{studyRevealed=true;renderStudy()};
+ }
+}
+function finishCard(known){
+ const item=studyItems[studyIndex];studyStats.reviewedCards=(Number(studyStats.reviewedCards)||0)+1;
+ if(known){studyStats.knownCards=(Number(studyStats.knownCards)||0)+1;item.known=true}
+ else if(!item.retry)studyItems.push({...item,retry:true});
+ store.set('studyStats',studyStats);updateStudyProgress();studyIndex++;studyRevealed=false;renderStudy();
+}
+async function generateAIStudy(mode){
+ const selected=sources.filter(s=>(s.collectionId||'all')===activeCollection);
+ const context=selected.map(s=>'[자료 제목: '+s.title+']\n'+s.text).join('\n\n').slice(0,24000);
+ const instruction=mode==='quiz'
+  ?'다음 학습 자료만 근거로 한국어 객관식 퀴즈를 정확히 5개 만들어라. 쉬운 암기 문제가 아니라 개념 이해를 묻고, 각 문제는 보기 4개와 정답 1개를 가져야 한다. 정답 근거와 자료 제목도 넣어라. JSON 배열만 출력하고 형식은 [{"question":"문제","options":["보기1","보기2","보기3","보기4"],"answer":"정답","explanation":"근거 설명","source":"자료 제목"}] 이다.'
+  :'다음 학습 자료만 근거로 핵심 개념 암기 카드를 6개 만들어라. 앞면은 개념을 떠올리는 질문, 뒷면은 짧고 정확한 답으로 작성한다. 자료 제목과 근거 문장도 넣어라. JSON 배열만 출력하고 형식은 [{"front":"질문","back":"답","explanation":"근거 문장","source":"자료 제목"}] 이다.';
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
+ try{
+  const response=await fetch(settings.url.replace(/\/$/,'')+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({model:settings.model,stream:false,format:'json',messages:[{role:'system',content:'너는 출처에 충실한 한국어 학습 튜터다. 입력한 자료의 사실만 사용하고, 자료에 없는 정보는 만들지 마라. 요청한 JSON 형식만 출력해라.'},{role:'user',content:'학습 자료:\n'+context+'\n\n요청:\n'+instruction}]})});
+  if(!response.ok)throw Error('offline');
+  const raw=(await response.json()).message?.content||'';
+  const parsed=JSON.parse(raw.replace(/^\s*```(?:json)?/i,'').replace(/```\s*$/,''));
+  if(!Array.isArray(parsed))throw Error('invalid');
+  const normalized=parsed.map(item=>mode==='quiz'?{question:String(item.question||'').trim(),options:Array.isArray(item.options)?item.options.map(String):[],answer:String(item.answer||'').trim(),sentence:String(item.explanation||item.answer||''),explanation:String(item.explanation||''),source:String(item.source||selected[0]?.title||'자료') }:{question:String(item.front||'').trim(),answer:String(item.back||'').trim(),sentence:String(item.explanation||item.back||''),source:String(item.source||selected[0]?.title||'자료')}).filter(item=>item.question&&item.answer&&(mode!=='quiz'||item.options.length>=2&&item.options.includes(item.answer)));
+  if(!normalized.length)throw Error('invalid');
+  return normalized.slice(0,mode==='quiz'?5:6);
+ }finally{clearTimeout(timer)}
+}
+async function startStudy(mode){
+ studyMode=mode;studyItems=getStudyItems();studyIndex=0;studyScore=0;studyRevealed=false;
+ const fallback=studyItems;
+ if(!sources.some(s=>(s.collectionId||'all')===activeCollection)){openModal('#sourceModal');return}
+ openModal('#studyModal');
+ if(settings?.url&&settings?.model&&$('#aiStatus').textContent==='Ollama 연결됨'){
+  $('#studyProgress').textContent='준비 중';
+  $('#studyTitle').textContent=mode==='quiz'?'퀴즈 풀기':'암기 카드';
+  $('#studyDescription').textContent='자료를 읽고 복습 자료를 만들고 있어요.';
+  $('#studyQuestion').textContent='잠시만 기다려 주세요…';
+  $('#studyOptions').innerHTML='';$('#studyFeedback').classList.add('hidden');$('#studyActions').innerHTML='';
+  try{studyItems=await generateAIStudy(mode);studyIndex=0;studyScore=0;renderStudy();$('#studyDescription').textContent='선택한 자료만 바탕으로 만들었어요.';return}catch{}
+ }
+ studyItems=fallback;
+ if(!studyItems.length){$('#studyTitle').textContent='자료가 더 필요해요';$('#studyDescription').textContent='문제나 카드를 만들 만한 문장을 찾지 못했어요. 내용을 더 추가해 주세요.';$('#studyQuestion').textContent='';$('#studyOptions').innerHTML='';$('#studyActions').innerHTML='<button type="button" class="primary-btn" id="addMoreSource">자료 추가하기</button>';$('#addMoreSource').onclick=openSourceModal;return}
+ renderStudy();$('#studyDescription').textContent='자료 문장을 바탕으로 복습해요. 답과 근거도 함께 확인할 수 있어요.';
+}
+$$('[data-study-mode]').forEach(b=>b.onclick=()=>startStudy(b.dataset.studyMode));
+function openModal(id){$(id).classList.remove('hidden')}function openSourceModal(){const select=$('#sourceCollection');if(select&&collections.some(c=>c.id===activeCollection))select.value=activeCollection;openModal('#sourceModal')}function closeModals(){$$('.modal-backdrop').forEach(x=>x.classList.add('hidden'))}
+$('#openAddSource').onclick=()=>openModal('#sourceModal');$('#toggleLibrary').onclick=()=>{const open=$('.sidebar').classList.toggle('library-open');$('#toggleLibrary').textContent=open?'자료 목록 닫기 ↑':'자료 목록 보기 ↓';$('#toggleLibrary').setAttribute('aria-expanded',String(open))};$('#manageSources').onclick=()=>openModal('#sourceModal');$('#openSettings').onclick=()=>{ $('#ollamaUrl').value=settings.url;$('#ollamaModel').value=settings.model;openModal('#settingsModal')};$('#openCloud').onclick=()=>{const config=store.get('cloudConfig',{});$('#cloudUrl').value=config.url||'';$('#cloudKey').value=config.key||'';if(cloudSyncState.user)$('#cloudEmail').value=cloudSyncState.user.email||'';setCloudStatus(cloudSyncState.user?`로그인됨 · ${cloudSyncState.user.email||''}`:'같은 Supabase 설정과 계정을 각 기기에 입력하세요.');openModal('#cloudModal')};$('#cloudSignup').onclick=()=>cloudLogin(true);$('#cloudLogin').onclick=()=>cloudLogin(false);$('#cloudLogout').onclick=async()=>{if(cloudSyncState.client){await cloudSyncState.client.auth.signOut();cloudSyncState.user=null;$('#openCloud').title='기기 간 자료 동기화';setCloudStatus('로그아웃했어요. 이 기기의 자료는 그대로 남아 있어요.')}};$$('[data-close]').forEach(x=>x.onclick=closeModals);$$('.modal-backdrop').forEach(x=>x.onclick=e=>{if(e.target===x)closeModals()});
+$('#importLink').onclick=async()=>{
+ const url=$('#resourceUrl').value.trim(),status=$('#linkStatus'),button=$('#importLink');
+ if(!url){status.textContent='링크를 입력해 주세요.';return}
+ const isYoutube=/youtu\.be|youtube\.com/i.test(url);
+ button.disabled=true;button.textContent=isYoutube?'자막 가져오는 중…':'본문 읽는 중…';status.textContent=isYoutube?'영상 제목과 자막을 확인하고 있어요.':'웹페이지 또는 PDF 본문을 가져오고 있어요.';
+ try{
+  const route=isYoutube?'/api/youtube/transcript':'/api/import-url';
+  const apiUrl=location.protocol==='file:'?'http://127.0.0.1:8765'+route:route;
+  const response=await fetch(apiUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(data.error||(isYoutube?'자막을 가져오지 못했어요.':'자료를 가져오지 못했어요.'));
+  const title=data.title||(isYoutube?'YouTube '+data.videoId:'웹 링크 자료');
+  const text=isYoutube?'영상 제목: '+title+'\n영상 링크: '+data.url+'\n자막 언어: '+data.language+'\n\n'+data.transcript:'자료 링크: '+data.url+'\n\n'+data.text;
+  const destination=$('#sourceCollection').value||activeCollection;
+  sources.unshift({id:Date.now()+Math.random(),title:(isYoutube?'영상 · ':'링크 · ')+title,text,url:data.url,videoId:data.videoId,collectionId:destination,created:Date.now()});
+  activeCollection=destination;store.set('activeCollection',activeCollection);store.set('sources',sources);renderCollections();renderSources();$('#resourceUrl').value='';closeModals();
+ }catch(error){const message=error.message||'';status.textContent=message==='Failed to fetch'?(location.protocol==='file:'?'먼저 Start-NEST.bat을 실행한 뒤 다시 눌러 주세요.':'서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'):(message||'가져오지 못했어요. 잠시 후 다시 시도해 주세요.')}
+ finally{button.disabled=false;button.textContent='링크 가져오기'}
+};
 $('#saveSource').onclick=()=>{const title=$('#sourceTitle').value.trim()||'새 자료';const text=$('#sourceText').value.trim();if(!text)return alert('내용을 붙여넣거나 파일을 선택해주세요.');sources.unshift({id:Date.now(),title,text,collectionId:$('#sourceCollection').value||activeCollection,created:Date.now()});store.set('sources',sources);$('#sourceTitle').value='';$('#sourceText').value='';renderCollections();renderSources();closeModals();};
 $('#newCollection').onclick=()=>{const name=prompt('새 자료함 이름을 입력하세요.\n예: 수학, 영어, 중간고사');if(!name?.trim())return;const c={id:'c_'+Date.now(),name:name.trim()};collections.push(c);activeCollection=c.id;store.set('collections',collections);renderCollections();renderSources()};$('#collectionList').onclick=e=>{const b=e.target.closest('[data-collection]');if(!b)return;activeCollection=b.dataset.collection;store.set('activeCollection',activeCollection);renderCollections();renderSources()};
-$('#sourceList').onclick=e=>{const btn=e.target.closest('[data-delete]');if(!btn)return;e.stopPropagation();const item=sources.find(s=>String(s.id)===btn.dataset.delete);if(item&&!confirm(`“${item.title}” 자료를 삭제할까요?`))return;sources=sources.filter(s=>String(s.id)!==btn.dataset.delete);store.set('sources',sources);renderSources()};
+$('#sourceList').onclick=e=>{const btn=e.target.closest('[data-delete]');if(!btn)return;e.stopPropagation();const item=sources.find(s=>String(s.id)===btn.dataset.delete);if(item&&!confirm(`“${item.title}” 자료를 삭제할까요?`))return;if(item)tombstones.push(`source:${item.id}`);store.set('tombstones',tombstones);sources=sources.filter(s=>String(s.id)!==btn.dataset.delete);store.set('sources',sources);renderSources()};
 async function readFileText(file){
+  if(file.type.startsWith('image/')){if(!window.Tesseract)throw Error('사진 글자 인식 도구를 불러오지 못했어요. 인터넷 연결을 확인해주세요.');const result=await Tesseract.recognize(file,'kor+eng');const text=result.data.text.trim();if(!text)throw Error('사진에서 글자를 찾지 못했어요.');return text}
   if(file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf')){
     if(!window.pdfjsLib)throw Error('PDF 도구를 불러오지 못했어요. 인터넷 연결을 확인해주세요.');
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -119,13 +293,44 @@ async function readFileText(file){
   return file.text();
 }
 $('#fileInput').onchange=async e=>{try{for(const file of e.target.files){const text=await readFileText(file);sources.unshift({id:Date.now()+Math.random(),title:file.name,text,collectionId:$('#sourceCollection').value||activeCollection,created:Date.now()})}store.set('sources',sources);renderCollections();renderSources();closeModals()}catch(err){alert(err.message||'파일을 읽지 못했어요.')}e.target.value=''};
-$('#chatForm').onsubmit=e=>{e.preventDefault();submitQuery($('#promptInput').value)};$('#promptInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#chatForm').requestSubmit()}};$$('[data-prompt]').forEach(b=>b.onclick=()=>{ $('#promptInput').value=b.dataset.prompt;$('#chatForm').requestSubmit()});$$('[data-tool-prompt]').forEach(b=>b.onclick=()=>{ $('#promptInput').value=b.dataset.toolPrompt;$('#chatForm').requestSubmit()});$('#clearChat').onclick=()=>{messages=[];store.set('messages',[]);renderMessages();renderEvidence([])};
-$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#sourcesTab').classList.toggle('hidden',t.dataset.tab!=='sources');$('#notesTab').classList.toggle('hidden',t.dataset.tab!=='notes')});$('#addNote').onclick=()=>{const text=prompt('저장할 노트 내용을 입력하세요');if(text?.trim()){notes.unshift({text:text.trim(),created:Date.now()});store.set('notes',notes);renderNotes()}};
+$('#chatForm').onsubmit=e=>{e.preventDefault();submitQuery($('#promptInput').value)};$('#promptInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#chatForm').requestSubmit()}};$$('[data-prompt]').forEach(b=>b.onclick=()=>{ $('#promptInput').value=b.dataset.prompt;$('#chatForm').requestSubmit()});$$('[data-tool-prompt]').forEach(b=>b.onclick=()=>{ $('#promptInput').value=b.dataset.toolPrompt;$('#chatForm').requestSubmit()});$('#clearChat').onclick=()=>{messages.forEach(m=>tombstones.push(`message:${m.id}`));store.set('tombstones',tombstones);messages=[];store.set('messages',[]);renderMessages();renderEvidence([])};
+$$('.tab').forEach(t=>t.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('#sourcesTab').classList.toggle('hidden',t.dataset.tab!=='sources');$('#notesTab').classList.toggle('hidden',t.dataset.tab!=='notes')});$('#addNote').onclick=()=>{const text=prompt('저장할 노트 내용을 입력하세요');if(text?.trim()){notes.unshift({id:'n_'+Date.now()+Math.random(),text:text.trim(),created:Date.now()});store.set('notes',notes);renderNotes()}};
 $('#saveSettings').onclick=()=>{settings={url:$('#ollamaUrl').value.trim()||'http://localhost:11434',model:$('#ollamaModel').value.trim()||'qwen2.5:3b'};store.set('settings',settings);$('#aiStatus').textContent='연결 확인 중…';closeModals();fetch(settings.url+'/api/tags').then(()=>$('#aiStatus').textContent='Ollama 연결됨').catch(()=>$('#aiStatus').textContent='데모 모드')};
 const savedTheme=store.get('theme','light');if(savedTheme==='dark')document.body.classList.add('dark');function updateThemeButton(){$('#toggleTheme').textContent=document.body.classList.contains('dark')?'☀ 라이트 모드':'☾ 다크 모드'}$('#toggleTheme').onclick=()=>{document.body.classList.toggle('dark');store.set('theme',document.body.classList.contains('dark')?'dark':'light');updateThemeButton()};updateThemeButton();
-store.set('sources',sources);renderCollections();renderSources();renderMessages();renderNotes();loadLarge('sources').then(saved=>{if(Array.isArray(saved)&&saved.length>sources.length){sources=saved;sources.forEach(s=>{if(!s.collectionId)s.collectionId='all'});renderCollections();renderSources()}});
+store.set('sources',sources);store.set('messages',messages);store.set('notes',notes);store.set('tombstones',tombstones);renderCollections();renderSources();renderMessages();renderNotes();updateStudyProgress();loadLarge('sources').then(saved=>{if(Array.isArray(saved)&&saved.length>sources.length){sources=saved;sources.forEach(s=>{if(!s.collectionId)s.collectionId='all'});renderCollections();renderSources()}initializeCloudOnStartup()});
 
-</script><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+</script><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script><script>if('serviceWorker'in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));</script>
 </body>
 </html>
+<style>/* Compact mobile layout: keep the study workspace in view. */
+.library-toggle{display:none}
+@media(max-width:650px){
+  .app-shell{display:block}
+  .sidebar{position:relative;top:auto;padding:12px 14px 10px;border-right:0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px 10px}
+  .brand{font-size:19px}.brand small{top:25px}
+  .sidebar .add-source{display:block;margin:0;padding:10px 12px;font-size:12px;white-space:nowrap}
+  .library-toggle{display:block;grid-column:1/-1;width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--muted);font-size:11px;text-align:left}
+  .sidebar .side-label,.sidebar .library-actions,.sidebar .collection-list,.sidebar .source-list,.sidebar .sidebar-bottom{display:none}
+  .sidebar.library-open .side-label,.sidebar.library-open .library-actions,.sidebar.library-open .collection-list,.sidebar.library-open .source-list{display:flex}
+  .sidebar.library-open .side-label{grid-column:1/-1}
+  .sidebar.library-open .library-actions,.sidebar.library-open .collection-list,.sidebar.library-open .source-list{grid-column:1/-1}
+  .sidebar.library-open .source-list{max-height:180px;overflow:auto;flex-direction:column}
+  .sidebar.library-open .sidebar-bottom{display:block;grid-column:1/-1}
+  .topbar{position:relative;top:auto;height:auto;min-height:0;padding:12px 14px 8px;border:0}
+  .topbar h1{font-size:19px;margin:4px 0 0}.eyebrow{font-size:9px}
+  .avatar,.ghost-btn{display:none}
+  .workspace{width:100%;min-height:0;padding:8px 12px 24px}
+  .context-strip{padding:10px;font-size:12px;line-height:1.5}
+  .study-tools{margin-top:10px;padding:11px}
+  .tools-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .tools-grid button{min-height:42px;padding:7px;font-size:11px}
+  .chat-messages{padding:18px 0 10px;min-height:100px}
+  .message{gap:8px;margin-bottom:13px}.bubble{max-width:90%;padding:11px 12px;font-size:14px;line-height:1.6}
+  .suggestions{flex-wrap:nowrap;overflow-x:auto;margin-bottom:8px}.suggestions button{flex:0 0 auto;min-height:38px;padding:8px 10px;white-space:nowrap}
+  .composer{position:sticky;bottom:6px;z-index:12}.composer textarea{min-height:46px;padding:11px 12px 4px;font-size:16px}
+  .insight-panel{display:none!important}
+  .modal-backdrop{padding:0;align-items:end}.modal{width:100%;max-height:92vh;border-radius:16px 16px 0 0;padding:22px 18px}
+}
+</style>
+
 <style>.sidebar,.topbar,.insight-panel{position:relative;z-index:5}.sidebar button,.topbar button,.insight-panel button{position:relative;z-index:6;pointer-events:auto;cursor:pointer}.main-panel{position:relative;z-index:1}@media(max-width:650px){.sidebar{position:sticky;top:0;z-index:20;padding:12px;background:var(--panel)}.topbar{position:sticky;top:0;z-index:15;min-height:76px;padding:12px 14px}.topbar h1{font-size:19px}.avatar,.ghost-btn{display:none}.workspace{padding:12px 12px 80px}.insight-panel{display:block;border-left:0;border-top:1px solid var(--line);padding:0 12px}.tools-grid{grid-template-columns:repeat(2,1fr);gap:6px}.tools-grid button,.suggestions button{min-height:44px}.composer{position:sticky;bottom:8px;z-index:12}.bubble{max-width:90%;font-size:14px}.modal-backdrop{padding:0;align-items:end}.modal{width:100%;max-height:92vh;border-radius:16px 16px 0 0;padding:22px 18px}} </style>
